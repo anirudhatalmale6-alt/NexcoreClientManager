@@ -1,0 +1,87 @@
+<?php
+
+namespace Modules\NexcoreClientManager\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Modules\NexcoreClientManager\Models\NexcoreClient;
+use Modules\NexcoreClientManager\Models\NexcoreGlChartOfAccount;
+use Modules\NexcoreClientManager\Models\NexcoreGlJournal;
+use Modules\NexcoreClientManager\Models\NexcoreGlJournalLine;
+use Carbon\Carbon;
+
+class IncomeStatementController extends Controller
+{
+    public function index(Request $request, $clientId)
+    {
+        $client = NexcoreClient::findOrFail($clientId);
+
+        $fromDate = $request->get('from_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
+        $toDate = $request->get('to_date', Carbon::now()->endOfMonth()->format('Y-m-d'));
+        $preset = $request->get('preset', 'this_month');
+
+        $postedJournalIds = NexcoreGlJournal::where('company_id', $clientId)
+            ->where('status', 'posted')
+            ->whereBetween('journal_date', [$fromDate, $toDate])
+            ->pluck('id');
+
+        $accounts = NexcoreGlChartOfAccount::where('company_id', $clientId)
+            ->whereIn('account_type', ['revenue', 'cost_of_sales', 'expense'])
+            ->whereIn('account_level', [2, 3])
+            ->orderBy('account_code')
+            ->get();
+
+        $balances = NexcoreGlJournalLine::whereIn('journal_id', $postedJournalIds)
+            ->select('account_id')
+            ->selectRaw('COALESCE(SUM(debit_amount), 0) as total_debit')
+            ->selectRaw('COALESCE(SUM(credit_amount), 0) as total_credit')
+            ->groupBy('account_id')
+            ->get()
+            ->keyBy('account_id');
+
+        $revenueAccounts = [];
+        $revenueTotal = 0;
+
+        $cosAccounts = [];
+        $cosTotal = 0;
+
+        $expenseAccounts = [];
+        $expenseTotal = 0;
+
+        foreach ($accounts as $account) {
+            $bal = $balances->get($account->id);
+            $debit = $bal ? (float) $bal->total_debit : 0;
+            $credit = $bal ? (float) $bal->total_credit : 0;
+
+            if ($debit == 0 && $credit == 0) {
+                continue;
+            }
+
+            if ($account->account_type === 'revenue') {
+                $amount = $credit - $debit;
+                $revenueAccounts[] = ['account' => $account, 'amount' => $amount];
+                $revenueTotal += $amount;
+            } elseif ($account->account_type === 'cost_of_sales') {
+                $amount = $debit - $credit;
+                $cosAccounts[] = ['account' => $account, 'amount' => $amount];
+                $cosTotal += $amount;
+            } elseif ($account->account_type === 'expense') {
+                $amount = $debit - $credit;
+                $expenseAccounts[] = ['account' => $account, 'amount' => $amount];
+                $expenseTotal += $amount;
+            }
+        }
+
+        $grossProfit = $revenueTotal - $cosTotal;
+        $netProfit = $grossProfit - $expenseTotal;
+
+        return view('nexcore_client_manager::accounting.income-statement', compact(
+            'client',
+            'revenueAccounts', 'revenueTotal',
+            'cosAccounts', 'cosTotal',
+            'expenseAccounts', 'expenseTotal',
+            'grossProfit', 'netProfit',
+            'fromDate', 'toDate', 'preset'
+        ));
+    }
+}

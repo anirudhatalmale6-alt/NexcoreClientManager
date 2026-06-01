@@ -1,0 +1,16 @@
+{
+    "name": "NexcoreClientManager",
+    "alias": "nexcore_client_manager",
+    "description": "NexCore Client Manager - Complete Client Lifecycle Management",
+    "author": "NexCore",
+    "url": "",
+    "version": "1.0",
+    "keywords": ["nexcore", "client", "manager", "lifecycle"],
+    "priority": 0,
+    "providers": [
+        "Modules\\NexcoreClientManager\\Providers\\ClientManagerServiceProvider"
+    ],
+    "aliases": {},
+    "files": [],
+    "requires": []
+}
