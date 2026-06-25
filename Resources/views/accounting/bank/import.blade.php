@@ -91,15 +91,17 @@
                     <select id="pdfBankType" class="bi-select">
                         <option value="fnb" {{ str_contains($bankLower,'fnb')||str_contains($bankLower,'first national')?'selected':'' }}>FNB (First National Bank)</option>
                         <option value="nedbank" {{ str_contains($bankLower,'nedbank')?'selected':'' }}>Nedbank</option>
+                        <option value="nedbank_online">Nedbank Online (Statement Enquiry)</option>
                         <option value="absa" {{ str_contains($bankLower,'absa')?'selected':'' }}>ABSA</option>
                         <option value="capitec" {{ str_contains($bankLower,'capitec')?'selected':'' }}>Capitec Bank</option>
-                        <option value="standard" {{ str_contains($bankLower,'standard')?'selected':'' }}>Standard Bank</option>
+                        <option value="standard" {{ str_contains($bankLower,'standard')?'selected':'' }}>Standard Bank (Old Format)</option>
+                        <option value="standard_new">Standard Bank (New Format)</option>
                     </select>
                 </div>
                 <div style="display:flex; align-items:flex-end; padding-bottom:6px;">
                     <div style="font-size:13px; color:var(--text-muted); font-weight:600;">
                         <i class="fas fa-check-circle" style="color:var(--accent-green); margin-right:6px;"></i>
-                        Supported: FNB, Nedbank, ABSA, Capitec, Standard Bank
+                        Supported: FNB, Nedbank (2 types), ABSA, Capitec, Standard Bank (Old &amp; New)
                     </div>
                 </div>
             </div>
@@ -360,7 +362,7 @@ async function parsePdf() {
         var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         var pages = [];
         var ocrPages = [];
-        var needsOcr = (bankType === 'fnb');
+        var needsOcr = (bankType === 'fnb' || bankType === 'standard_new');
 
         for (var i = 1; i <= pdf.numPages; i++) {
             status.textContent = 'Reading page ' + i + ' of ' + pdf.numPages + '...';
