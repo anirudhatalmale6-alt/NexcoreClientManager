@@ -92,8 +92,11 @@
                         <option value="fnb" {{ str_contains($bankLower,'fnb')||str_contains($bankLower,'first national')?'selected':'' }}>FNB (First National Bank)</option>
                         <option value="nedbank" {{ str_contains($bankLower,'nedbank')?'selected':'' }}>Nedbank</option>
                         <option value="nedbank_online">Nedbank Online (Statement Enquiry)</option>
-                        <option value="absa" {{ str_contains($bankLower,'absa')?'selected':'' }}>ABSA</option>
-                        <option value="capitec" {{ str_contains($bankLower,'capitec')?'selected':'' }}>Capitec Bank</option>
+                        <option value="absa_transaction_history" {{ str_contains($bankLower,'absa')?'selected':'' }}>ABSA (Transaction History)</option>
+                        <option value="absa_bank_statement">ABSA (Bank Statement)</option>
+                        <option value="capitec" {{ str_contains($bankLower,'capitec')?'selected':'' }}>Capitec (Mercantile Bank)</option>
+                        <option value="capitec_personal">Capitec (Personal Banking)</option>
+                        <option value="capitec_business">Capitec (Business Banking)</option>
                         <option value="standard" {{ str_contains($bankLower,'standard')?'selected':'' }}>Standard Bank (Old Format)</option>
                         <option value="standard_new">Standard Bank (New Format)</option>
                     </select>
@@ -101,7 +104,7 @@
                 <div style="display:flex; align-items:flex-end; padding-bottom:6px;">
                     <div style="font-size:13px; color:var(--text-muted); font-weight:600;">
                         <i class="fas fa-check-circle" style="color:var(--accent-green); margin-right:6px;"></i>
-                        Supported: FNB, Nedbank (2 types), ABSA, Capitec, Standard Bank (Old &amp; New)
+                        Supported: FNB, Nedbank (2 types), ABSA (2 types), Capitec (3 types), Standard Bank (2 types)
                     </div>
                 </div>
             </div>
@@ -362,7 +365,7 @@ async function parsePdf() {
         var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         var pages = [];
         var ocrPages = [];
-        var needsOcr = (bankType === 'fnb' || bankType === 'standard_new');
+        var needsOcr = (bankType === 'fnb' || bankType === 'absa_bank_statement' || bankType === 'standard_new');
 
         for (var i = 1; i <= pdf.numPages; i++) {
             status.textContent = 'Reading page ' + i + ' of ' + pdf.numPages + '...';
@@ -398,7 +401,7 @@ async function parsePdf() {
 
             if (needsOcr) {
                 status.textContent = 'Scanning page ' + i + ' for image text (OCR)...';
-                var scale = 2;
+                var scale = (bankType === 'absa_bank_statement') ? 4 : 2;
                 var viewport = page.getViewport({ scale: scale });
                 var canvas = document.createElement('canvas');
                 canvas.width = viewport.width;
@@ -593,15 +596,15 @@ function renderPreview(result) {
     html += '</div>';
 
     html += '<div style="max-height:420px;overflow-y:auto;border:1px solid var(--border-subtle);border-radius:10px;">';
-    html += '<table class="bi-preview-table"><thead><tr><th style="width:40px;">#</th><th style="width:110px;">Date</th><th>Description</th><th style="text-align:right;width:130px;">Amount</th><th style="text-align:right;width:130px;">Balance</th><th style="width:50px;text-align:center;"></th></tr></thead><tbody>';
+    html += '<table class="bi-preview-table"><thead><tr><th style="width:40px;">#</th><th style="width:130px;white-space:nowrap;">Date</th><th>Description</th><th style="text-align:right;width:130px;">Amount</th><th style="text-align:right;width:130px;">Balance</th><th style="width:50px;text-align:center;"></th></tr></thead><tbody>';
 
     result.transactions.forEach(function(txn, idx) {
         var cls = txn.amount >= 0 ? 'credit' : 'debit';
         var sign = txn.amount >= 0 ? '+' : '';
         var fmtAmt = sign + Math.abs(txn.amount).toLocaleString('en-ZA', {minimumFractionDigits:2, maximumFractionDigits:2});
         var fmtBal = txn.balance ? Math.abs(txn.balance).toLocaleString('en-ZA', {minimumFractionDigits:2, maximumFractionDigits:2}) : '-';
-        html += '<tr id="txn-row-' + idx + '"><td>' + (idx + 1) + '</td><td>' + txn.date + '</td>';
-        html += '<td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + txn.description.replace(/"/g, '&quot;') + '">' + txn.description + '</td>';
+        html += '<tr id="txn-row-' + idx + '"><td>' + (idx + 1) + '</td><td style="white-space:nowrap;">' + txn.date + '</td>';
+        html += '<td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;" title="' + txn.description.replace(/"/g, '&quot;') + '">' + txn.description + '</td>';
         html += '<td style="text-align:right;" class="' + cls + '">' + fmtAmt + '</td>';
         html += '<td style="text-align:right;">' + fmtBal + '</td>';
         html += '<td style="text-align:center;"><button type="button" onclick="deleteTransaction(' + idx + ')" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:var(--accent-red);cursor:pointer;padding:4px 8px;font-size:12px;transition:all 0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.25)\'" onmouseout="this.style.background=\'rgba(239,68,68,0.1)\'"><i class="fas fa-trash-alt"></i></button></td>';
